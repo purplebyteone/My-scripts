@@ -28,17 +28,17 @@ sock.connect(('94.237.52.136', 31443))  # CHANGE THE IP & PORT to the correct ad
 
 # Set the system_active flag to 1
 system_active_command = tcp.write_multiple_coils(slave_id=1, starting_address=0x075, values=[True])
-response = tcp.send_message(system_active_command, sock)
+response = tcp.send(system_active_command, sock)
 
 # Check if the command was successful
-if isinstance(response, int) and response > 0:
-    print("Failed to set the system_active flag. Modbus exception code:", response)
+if isinstance(response, int) and response != 0:
+    print(f"Failed to set the system_active flag. Modbus exception code: {response}")
     sock.close()
     exit()
 else:
     print("System active flag set to 1")
 
-# Define TON timers
+# Define TON timers and other variables
 class Timer:
     def __init__(self):
         self.start_time = None
@@ -74,7 +74,7 @@ sensor_values_response = tcp.read_coils(slave_id=1, starting_address=SENSOR_0_AD
 
 # Check if the sensor values response is valid and contains data
 if isinstance(sensor_values_response, bytes) and len(sensor_values_response) == 1:
-    sensor_values = [int(bit) for bit in sensor_values_response.bits]
+    sensor_values = [int(bit) for bit in sensor_values_response[0]]
     print(f"Sensor Values: {sensor_values}")
 else:
     print("Failed to read sensor values. Exiting...")
@@ -138,11 +138,11 @@ commands = [
 
 # Send the command sequence to the network
 for command in commands:
-    response = tcp.send_message(command, sock)
+    response = tcp.send(command, sock)
 
     # Check if the command was successful
-    if isinstance(response, int) and response > 0:
-        print("Failed to send command. Modbus exception code:", response)
+    if isinstance(response, int) and response != 0:
+        print(f"Failed to send command. Modbus exception code: {response}")
         sock.close()
         exit()
 
@@ -169,11 +169,11 @@ sleep(120)
 
 # Set the system_active flag to 0 for system reset
 system_active_command_reset = tcp.write_multiple_coils(slave_id=1, starting_address=0x075, values=[False])
-response_reset = tcp.send_message(system_active_command_reset, sock)
+response_reset = tcp.send(system_active_command_reset, sock)
 
 # Check if the command was successful
-if isinstance(response_reset, int) and response_reset > 0:
-    print("Failed to reset the system_active flag. Modbus exception code:", response_reset)
+if isinstance(response_reset, int) and response_reset != 0:
+    print(f"Failed to reset the system_active flag. Modbus exception code: {response_reset}")
     sock.close()
     exit()
 else:
