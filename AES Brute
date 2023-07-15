@@ -1,0 +1,66 @@
+from Crypto.Cipher import AES
+import itertools
+import time
+
+ciphertexts = [
+    bytes.fromhex('76ca21043b5e471169ec20a55297165807ab5b30e588c9c54168b2136fc97d14'),
+    bytes.fromhex('6ccd6818755214527bed6da3008600514bad4d62ac83c1c9417ca3136fc97d14'),
+    bytes.fromhex('6af60a0c6e5944432af77ea30682076509ae0873e785c79e026b8c1435c56646'),
+    bytes.fromhex('71c72b057e43145874e522b21f86175304ac1879ffc6cac45077aa1772c37714')
+]
+
+plaintexts = [
+    "This is some public information that can be read out loud.",
+    "No one can crack our encryption algorithm.",
+    "HTB{?????????????????????????????????????????????}",
+    "Secret information is encrypted with Advanced Encryption Standards."
+]
+
+def try_decrypt_with_key(key):
+    global ciphertexts, plaintexts
+    try:
+        aes = AES.new(key, AES.MODE_ECB)
+        decrypted_texts = [aes.decrypt(ct) for ct in ciphertexts]
+        for pt, expected_pt in zip(decrypted_texts, plaintexts):
+            if pt != expected_pt.encode():
+                return False
+        return True
+    except ValueError:
+        return False
+
+def brute_force_attack():
+    global ciphertexts
+    key_length = 16
+    keys = itertools.product(range(256), repeat=key_length)
+
+    total_keys = 256 ** key_length
+    start_time = time.time()
+    for i, key in enumerate(keys):
+        key_bytes = bytes(key)
+        if try_decrypt_with_key(key_bytes):
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            remaining_time = (elapsed_time / (i + 1)) * (total_keys - (i + 1))
+            print(f"Tried key: {key_bytes.hex()}, Time left: {convert_seconds(remaining_time)}")
+            return key_bytes.hex()
+        if i % 1000 == 0:
+            elapsed_time = time.time() - start_time
+            remaining_time = (elapsed_time / (i + 1)) * (total_keys - (i + 1))
+            print(f"Tried keys: {i}/{total_keys}, Time left: {convert_seconds(remaining_time)}")
+
+    return None
+
+def convert_seconds(seconds):
+    m, s = divmod(int(seconds), 60)
+    h, m = divmod(m, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+def main():
+    key = brute_force_attack()
+    if key:
+        print(f"Key found: {key}")
+    else:
+        print("Key not found.")
+
+if __name__ == '__main__':
+    main()
