@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+import socket
+from time import sleep
+from umodbus import conf
+from umodbus.client import tcp
+from time import time
+
+# Define Modbus addresses for doors and sensors
+# ... (same as before)
+
+# Adjust modbus configuration
+conf.SIGNED_VALUES = True
+
+# Create a socket connection
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('94.237.52.136', 31443))  # CHANGE THE IP & PORT to the correct address
+
+# Set the system_active flag to 1
+system_active_command = tcp.write_multiple_coils(slave_id=1, starting_address=0x075, values=[True])
+response = tcp.send_message(system_active_command, sock)
+
+# Check if the command was successful
+if response.is_error():
+    print(f"Failed to set the system_active flag. Modbus exception code: {response.exception_code}")
+    sock.close()
+    exit()
+else:
+    print("System active flag set to 1")
