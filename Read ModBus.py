@@ -85,11 +85,6 @@ def read_modbus_value(sock, slave_id, address, quantity=1):
     print(f"Unable to read value for address {address} and Slave ID {slave_id} after {MAX_RETRIES} retries.")
     return None
 
-def print_menu():
-    print("\nMenu Options:")
-    print("1. Read Modbus Value")
-    print("2. Exit")
-
 def save_to_txt(slave_id, starting_addresses, file_name, sock):
     with open(file_name, 'w') as f:
         for address in starting_addresses:
@@ -100,33 +95,15 @@ def save_to_txt(slave_id, starting_addresses, file_name, sock):
             time.sleep(3)
 
 def main():
-    slave_id = int(input("Enter the Slave ID: "))
-    starting_addresses = range(300)  # Change this to the desired range
+    slave_id = 52
+    starting_addresses = range(300)
     file_name = f"output_slave_{slave_id}.txt"
 
     sock = connect_to_modbus(slave_id)
 
     if sock:
         print(f"Connection to Slave ID {slave_id} established.")
-        while True:
-            print_menu()
-            choice = input("Enter your choice: ")
-
-            if choice == '1':
-                address = int(input("Enter the Modbus address: "))
-                print(f"Checking address {address} for Slave ID {slave_id}...")
-                values = read_modbus_value(sock, slave_id, address)
-                if values is not None:
-                    print(f"Values at address {address} (Slave ID {slave_id}): {values}")
-            elif choice == '2':
-                break
-            else:
-                print("Invalid choice. Please try again.")
-
-        sock.close()
-        print(f"Connection to Slave ID {slave_id} closed.")
         print(f"Saving data for Slave ID {slave_id} to {file_name}...")
-        sock = connect_to_modbus(slave_id)  # Reconnect to get a new socket for saving data
         save_to_txt(slave_id, starting_addresses, file_name, sock)
         sock.close()
         print(f"Data saved to {file_name}.")
