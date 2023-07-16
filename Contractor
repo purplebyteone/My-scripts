@@ -1,0 +1,59 @@
+import requests
+from web3 import Web3
+from eth_account import Account
+
+# Replace this with your provided private key
+private_key = "0x2f49b31d9ec9501289d5199c81d343e06504f5d8ed8252721a4425dcf246fea9"
+
+# Replace this with the provided RPC URL (using HTTP)
+rpc_url = "http://83.136.251.168:42990"
+
+# Replace this with the contract address of the Target contract
+target_contract_address = "0x684A88025e22eF01473B2beFd6bA0293991E1c2d"
+
+# Connect to the Ethereum node
+try:
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
+except requests.exceptions.ReadTimeout:
+    print("Error: Timeout connecting to the Ethereum node. Check the RPC URL.")
+    exit(1)
+
+# Create an account object from the private key
+account = Account.from_key(private_key)
+
+# Get the ABI of the Contract contract
+contract_abi = [
+    {
+        "constant": False,
+        "inputs": [{"name": "signature", "type": "uint256"}],
+        "name": "signContract",
+        "outputs": [],
+        "payable": False,
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "constant": True,
+        "inputs": [],
+        "name": "signed",
+        "outputs": [{"name": "", "type": "bool"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+
+# Create a contract object for the Contract contract
+contract = w3.eth.contract(address=target_contract_address, abi=contract_abi)
+
+# Call the signContract function with signature=1337
+tx_hash = contract.functions.signContract(1337).transact({"from": account.address})
+
+# Wait for the transaction to be mined
+tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+# Check if the transaction was successful
+if tx_receipt and tx_receipt["status"] == 1:
+    print("The challenge is solved!")
+else:
+    print("Failed to solve the challenge.")
