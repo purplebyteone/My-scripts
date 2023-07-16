@@ -31,7 +31,7 @@ def connect_to_modbus(slave_id, server_ip=SERVER_IP, server_port=SERVER_PORT):
         print(f"Connection to the Modbus server at {server_ip}:{server_port} with Slave ID {slave_id} failed. Error: {e}")
     return None
 
-def read_modbus_value(sock, slave_id, address, quantity=100):
+def read_modbus_value(sock, slave_id, address, quantity=1):
     # Define the Modbus command to read holding registers
     request = tcp.read_holding_registers(slave_id=slave_id, starting_address=address, quantity=quantity)
 
@@ -65,6 +65,17 @@ def read_modbus_value(sock, slave_id, address, quantity=100):
                     print(f"Value successfully read from address {address} (Slave ID {slave_id}): {value}")
                     return value
                 else:
+                    # Try to handle other possible response formats
+                    if isinstance(response, list):
+                        if all(isinstance(register, int) for register in response):
+                            print(f"Response is a list of integers, trying to use it as the value...")
+                            print(f"Value successfully read from address {address} (Slave ID {slave_id}): {response}")
+                            return response
+                        elif all(hasattr(register, 'value') for register in response):
+                            print(f"Response is a list of registers, extracting values...")
+                            values = [register.value for register in response]
+                            print(f"Values successfully read from address {address} (Slave ID {slave_id}): {values}")
+                            return values
                     print(f"Unknown response format for address {address} and Slave ID {slave_id}. Response: {response}")
                     return None
         except Exception as e:
@@ -79,9 +90,19 @@ def print_menu():
     print("1. Read Modbus Value")
     print("2. Exit")
 
+def save_to_txt(slave_id, starting_addresses, file_name, sock):
+    with open(file_name, 'w') as f:
+        for address in starting_addresses:
+            print(f"Checking address {address} for Slave ID {slave_id}...")
+            values = read_modbus_value(sock, slave_id, address, quantity=100)
+            if values is not None:
+                f.write(f"Values at address {address} (Slave ID {slave_id}): {values}\n")
+            time.sleep(3)
+
 def main():
     slave_id = int(input("Enter the Slave ID: "))
-    starting_addresses = [6, 10, 12, 16, 20, 21, 22, 26, 27, 31, 32, 36, 47, 52, 53, 57, 63, 69, 73, 77, 83, 86, 87, 88, 89, 93, 95, 96, 97, 99, 194, 195, 196, 114, 122, 123, 126, 128, 131, 133, 134, 137, 138, 139, 140, 141, 143, 144, 145, 146, 148, 149, 153, 154, 155, 157, 163, 166, 168, 173, 177, 178, 179, 180, 181, 183, 188, 189, 193, 203, 206, 207, 210, 214, 215, 216, 219, 220, 221, 224, 225, 226, 229, 231, 232, 234, 235, 236, 239, 241, 245, 249, 253, 255, 259, 263, 266, 270]
+    starting_addresses = range(300)  # Change this to the desired range
+    file_name = f"output_slave_{slave_id}.txt"
 
     sock = connect_to_modbus(slave_id)
 
@@ -94,19 +115,21 @@ def main():
             if choice == '1':
                 address = int(input("Enter the Modbus address: "))
                 print(f"Checking address {address} for Slave ID {slave_id}...")
-                value = read_modbus_value(sock, slave_id, address)
-                if value is not None:
-                    print(f"Value at address {address} (Slave ID {slave_id}): {value}")
+                values = read_modbus_value(sock, slave_id, address)
+                if values is not None:
+                    print(f"Values at address {address} (Slave ID {slave_id}): {values}")
             elif choice == '2':
                 break
             else:
                 print("Invalid choice. Please try again.")
 
-            # Pause for 3 seconds before proceeding to the next address
-            time.sleep(3)
-
         sock.close()
         print(f"Connection to Slave ID {slave_id} closed.")
+        print(f"Saving data for Slave ID {slave_id} to {file_name}...")
+        sock = connect_to_modbus(slave_id)  # Reconnect to get a new socket for saving data
+        save_to_txt(slave_id, starting_addresses, file_name, sock)
+        sock.close()
+        print(f"Data saved to {file_name}.")
     else:
         print("Connection failed. Exiting...")
 
