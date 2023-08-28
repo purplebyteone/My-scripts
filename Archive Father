@@ -1,0 +1,22 @@
+How to zip multiple files in to separate zip files for each files instead of creating 1 archive with all of the files?
+Create new txt file and rename it's extension to be .bat instead of .txt but not now
+Make sure that 7zip is installed https://www.7-zip.org/download.html
+Make sure that PATH is edited and that System variable is leading to 7zip installation folder
+-- Search for "Environment Variables" in the Windows search bar and select "Edit the system environment variables
+-- In the System Properties window, click the "Environment Variables" button.
+-- In the "System variables" section, find the "Path" variable, select it, and click "Edit."
+-- Click "New" and add the path to the 7-Zip installation directory (e.g., C:\Program Files\7-Zip).
+-- Click OK to close the windows and save the changes.
+Paste this code:
+
+@echo off
+for %%i in (*.*) do (
+    echo Compressing "%%i"...
+    7z a -mx9 "%%~ni.7z" "%%i"
+)
+echo Compression completed.
+pause
+
+Now save file as zipper.bat
+Put in inside the folder that you have files you want to create archives from
+Let it run
