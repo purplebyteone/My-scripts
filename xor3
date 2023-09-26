@@ -1,0 +1,22 @@
+def xor_string(input_string, key):
+    result = ""
+    for char in input_string:
+        # XOR each character with the key character
+        result += chr(ord(char) ^ key)
+    return result
+
+# Define the input string and keys
+input_string = "477b7a6177527d77557a7d727f32323213"
+key1 = 0x11
+key2 = 0x13
+
+# Apply XOR with Key 0x11
+result1 = xor_string(input_string, key1)
+
+# Apply XOR with Key 0x13
+result2 = xor_string(input_string, key2)
+
+# Print the results
+print("Original: ", input_string)
+print("XOR'd with Key 0x11: ", result1)
+print("XOR'd with Key 0x13: ", result2)
